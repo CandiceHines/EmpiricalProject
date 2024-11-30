@@ -3,7 +3,6 @@ package graphCode;
 import javax.swing.plaf.IconUIResource;
 import java.io.*;
 import java.util.*;
-import java.util.Stack;
 
 
 
@@ -14,7 +13,7 @@ public class FordFulkerson {
     private Vertex source;
     private Vertex sink;
     private Map<Edge, Double> flow;
-
+    private Map<Edge, Edge> bindings;
 
     //Initialize the containers
     public FordFulkerson(SimpleGraph graph, Vertex source, Vertex sink) {
@@ -23,6 +22,7 @@ public class FordFulkerson {
         this.source = source;
         this.sink = sink;
         this.flow = new HashMap<>();
+        this.bindings = new HashMap<>();
 
         List<Edge> originalEdges = new ArrayList<>();
         //Copy edges
@@ -40,6 +40,9 @@ public class FordFulkerson {
             //Create backwards edge
             Edge backwardEdge = graph.insertEdge(v2, v1, 0, "back_" + currentEdge.getName());
             flow.put(backwardEdge, 0.0);
+            //bind forwardEdge and backward together
+            bindings.put(currentEdge,backwardEdge);
+            bindings.put(backwardEdge,currentEdge);
         }
     }
 
@@ -114,12 +117,13 @@ public class FordFulkerson {
             while (currentVertexEdges.hasNext()) {
                 Edge currentEdge = currentVertexEdges.next();
                 Vertex nextVertex = graph.opposite(currentVertex, currentEdge);
-
+                // judge if path is in correct direction
+                boolean validDirection = (currentVertex == currentEdge.getFirstEndpoint());
+                // judge if path is a 0 backward
                 boolean validPath = (delta == 0) ?
                         getResidualCapacity(currentEdge) > 0 :
                         getResidualCapacity(currentEdge) >= delta;
-
-                if (!visited.contains(nextVertex) && validPath) {
+                if (!visited.contains(nextVertex) && validPath && validDirection) {
                     visited.add(nextVertex);
                     stack.push(nextVertex);
                     parentEdges.put(nextVertex, currentEdge);  // Remember which edge led to nextVertex
@@ -134,7 +138,6 @@ public class FordFulkerson {
         //Input: Path found by findAugmentingPath method
         //Output: Bottleneck value of that path
         double bottleneck = Double.MAX_VALUE;
-        double edgeValue;
 
         for (Edge currentEdge : path) {
             double residualCapacity = getResidualCapacity(currentEdge);
@@ -154,13 +157,10 @@ public class FordFulkerson {
         for (int i = 0; i < path.size(); i++) {
             Edge currentEdge = path.get(i);
 
-            if (isForwardEdge(currentEdge)) {
-                //Subtract bottleneck from flow
-                flow.put(currentEdge, flow.get(currentEdge) + bottleneck);
-            } else {
-                //Add bottleneck to flow
-                flow.put(currentEdge, flow.get(currentEdge) - bottleneck);
-            }
+            // same behavior for forward and backward edge in our definition background
+            flow.put(currentEdge, flow.get(currentEdge) + bottleneck);
+            Edge bindEdge = bindings.get(currentEdge);
+            flow.put(bindEdge, flow.get(bindEdge) - bottleneck);
         }
 
     }
