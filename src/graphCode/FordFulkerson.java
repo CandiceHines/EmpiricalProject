@@ -14,6 +14,8 @@ public class FordFulkerson {
     private Vertex sink;
     private Map<Edge, Double> flow;
     private Map<Edge, Edge> bindings;
+    private Map<String, Edge> fedge_index;
+    private Map<String, Edge> bedge_index;
 
     //Initialize the containers
     public FordFulkerson(SimpleGraph graph, Vertex source, Vertex sink) {
@@ -23,14 +25,18 @@ public class FordFulkerson {
         this.sink = sink;
         this.flow = new HashMap<>();
         this.bindings = new HashMap<>();
+        this.fedge_index = new HashMap<>();
+        this.bedge_index = new HashMap<>();
 
         List<Edge> originalEdges = new ArrayList<>();
         //Copy edges
         Iterator<Edge> edgeIterator = graph.edges();
         while (edgeIterator.hasNext()) {
             Edge e = edgeIterator.next();
+            String v_pair = getVerticesPair(e);
             originalEdges.add(e);
             flow.put(e, 0.0);
+            fedge_index.put(v_pair,e);
 
         }
         for (Edge currentEdge : originalEdges) {
@@ -43,10 +49,42 @@ public class FordFulkerson {
             //bind forwardEdge and backward together
             bindings.put(currentEdge,backwardEdge);
             bindings.put(backwardEdge,currentEdge);
+
+            String v_pair = getVerticesPair(backwardEdge);
+            bedge_index.put(v_pair,backwardEdge);
         }
     }
 
+    private String getVerticesPair(Edge e){
+        Vertex v1 = e.getFirstEndpoint();
+        Vertex v2 = e.getSecondEndpoint();
+        String v1_str = (String) v1.getName(); 
+        String v2_str = (String) v2.getName(); 
+        String v_pair = v1_str + "#" + v2_str;
+        return v_pair;
+    }
 
+    private Edge findSameDirectionEdge(Edge e){
+        String v_pair = getVerticesPair(e);
+        if (isForwardEdge(e)){
+            if (bedge_index.containsKey(v_pair)){
+                Edge sameDirectionEdge = bedge_index.get(v_pair);
+                return sameDirectionEdge;
+            }
+            else{
+                return null;
+            }
+        }
+        else{
+            if (fedge_index.containsKey(v_pair)){
+                Edge sameDirectionEdge = fedge_index.get(v_pair);
+                return sameDirectionEdge;
+            }
+            else{
+                return null;
+            } 
+        }
+    }
 
     public double calculateMaxFlow(double delta) {
         //Main Method of algorithm that calculates the maximum flow of a
@@ -141,6 +179,10 @@ public class FordFulkerson {
 
         for (Edge currentEdge : path) {
             double residualCapacity = getResidualCapacity(currentEdge);
+            Edge sameDirectionEdge = findSameDirectionEdge(currentEdge);
+            if (sameDirectionEdge!=null){
+                residualCapacity += getResidualCapacity(sameDirectionEdge);
+            }
             if (residualCapacity < bottleneck) {
                 bottleneck = residualCapacity;
             }
@@ -156,11 +198,23 @@ public class FordFulkerson {
 
         for (int i = 0; i < path.size(); i++) {
             Edge currentEdge = path.get(i);
+            double residualCapacity = getResidualCapacity(currentEdge);
+            if (residualCapacity>=bottleneck){
+                // same behavior for forward and backward edge in our definition background
+                flow.put(currentEdge, flow.get(currentEdge) + bottleneck);
+                Edge bindEdge = bindings.get(currentEdge);
+                flow.put(bindEdge, flow.get(bindEdge) - bottleneck);
+            }
+            else{
+                Edge sameDirectionEdge = findSameDirectionEdge(currentEdge);
+                flow.put(currentEdge, flow.get(currentEdge) + residualCapacity);
+                Edge bindEdge = bindings.get(currentEdge);
+                flow.put(bindEdge, flow.get(bindEdge) - residualCapacity);
 
-            // same behavior for forward and backward edge in our definition background
-            flow.put(currentEdge, flow.get(currentEdge) + bottleneck);
-            Edge bindEdge = bindings.get(currentEdge);
-            flow.put(bindEdge, flow.get(bindEdge) - bottleneck);
+                flow.put(sameDirectionEdge, flow.get(sameDirectionEdge) + (bottleneck-residualCapacity));
+                Edge bindEdge_sde = bindings.get(sameDirectionEdge);
+                flow.put(bindEdge_sde, flow.get(bindEdge_sde) - (bottleneck-residualCapacity));
+            }
         }
 
     }
