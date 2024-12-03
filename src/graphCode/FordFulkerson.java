@@ -93,7 +93,7 @@ public class FordFulkerson {
         //Output: Maximum flow of the flow network
 
         //Store augmented path in path variable
-        List<Edge> path = findAugmentingPath(0);
+        List<Edge> path = findAugmentingPath(delta);
 
         //While findAugmentingPath is not null
         while (path != null) {
@@ -102,7 +102,7 @@ public class FordFulkerson {
             //Augment flow of path
             augmentFlow(path, bottleneck);
             //Update path to become next path
-            path = findAugmentingPath(0);
+            path = findAugmentingPath(delta);
         }
 
 
